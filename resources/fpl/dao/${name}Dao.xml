@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="${packagePath}.dao.${name}Dao">
+    <resultMap id="BaseResultMap" type="${name}">
+	<#list columns as column>
+		<result property="${column.name}" column="${column.code}" jdbcType="${column.mybatisFieldType}"/>
+	</#list>    
+    </resultMap>
+
+    <sql id="Base_Column_List">
+	<#list columns as column>
+		${column.code}	${column.name}<#if column_has_next >,</#if>
+	</#list>    
+    </sql>
+
+	<!-- 分页前缀 -->
+	<sql id="oraclePagePrefix">
+	  	SELECT * FROM ( 
+	    	SELECT A.*, ROWNUM RN 
+				FROM (
+	</sql>
+  
+    <!-- 分页后缀 -->
+	<sql id="oraclePageSubfix">
+  			) A 
+			WHERE ROWNUM &lt;= <#noparse>#{</#noparse>pagination.endRow<#noparse>}</#noparse>
+		) 
+		WHERE RN &gt; <#noparse>#{</#noparse>pagination.startRow<#noparse>}</#noparse>
+  	</sql>
+	
+	<sql id="oraclePagedynamicWhere">
+		<where>
+		<#list columns as column>
+	        <if test="@Ognl@isNotEmpty(obj.${column.name})">
+				AND ${column.code} = <#noparse>#{</#noparse>obj.${column.name},jdbcType=${column.mybatisFieldType}<#noparse>}</#noparse>
+			</if>
+		</#list>
+		</where>
+	</sql>
+	
+    <insert id="add" parameterType="${name}">
+        INSERT INTO ${code}(
+	<#list columns as column>
+			${column.code}<#if column_has_next >,</#if>
+	</#list>
+        ) VALUES (
+	<#list columns as column>
+			<#noparse>#{</#noparse>${column.name},jdbcType=${column.mybatisFieldType}<#noparse>}</#noparse><#if column_has_next >,</#if>
+	</#list>
+        )
+    </insert>
+
+	<update id="update" parameterType="${name}" >
+        UPDATE ${code} 
+        <set>
+		<#list columns as column>
+	        <if test="@Ognl@isNotEmpty(${column.name})">
+				${column.code} = <#noparse>#{</#noparse>${column.name},jdbcType=${column.mybatisFieldType}<#noparse>}</#noparse>,
+			</if>
+		</#list>	
+		</set>	        
+        WHERE C_ID = <#noparse>#{id,jdbcType=VARCHAR}</#noparse>
+	</update>
+	
+	<select id="get" parameterType="string" resultType="${name}">
+		SELECT
+		<include refid="Base_Column_List" />
+		FROM ${code} 
+		WHERE C_ID = <#noparse>#{</#noparse>id, jdbcType=VARCHAR<#noparse>}</#noparse>
+	</select>
+	
+	<select id="getTotalCount" parameterType="MyBatisQuery" resultType="int">
+		SELECT 
+			COUNT(1) 
+		FROM ${code}
+		<include refid="oraclePagedynamicWhere" />
+	</select>
+	
+	<select id="getList" resultMap="BaseResultMap" parameterType="MyBatisQuery">
+		<include refid="oraclePagePrefix"/> 
+		SELECT 
+			<include refid="Base_Column_List"/>  
+		FROM ${code}
+			<include refid="oraclePagedynamicWhere" />
+		ORDER BY D_CREATE_TIME desc
+		<include refid="oraclePageSubfix"/> 
+	</select>
+	
+</mapper>
